@@ -4,6 +4,99 @@ import pandas as pd
 import numpy as np
 
 
+def describe_df(df):
+    """
+    Función para describir un DataFrame de pandas proporcionando información sobre el tipo de datos,
+    valores faltantes, valores únicos y cardinalidad.
+
+    Params:
+        df: DataFrame de pandas.
+
+    Returns:
+        DataFrame con la información recopilada sobre el DataFrame de entrada.
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("El argumento 'df' debe ser un DataFrame de pandas válido.")
+
+    # Creamons un diccionario para almacenar la información
+    data = {
+        'DATA_TYPE': df.dtypes,
+        'MISSINGS(%)': df.isnull().mean() * 100,
+        'UNIQUE': df.nunique(),
+        'CARD(%)': round(df.nunique() / len(df) * 100, 3)
+    }
+
+    # Creamos un nuevo DataFrame con la información recopilada, usamos 'transpose' para cambiar
+    # las filas por columnas.
+    estudiantes_df = pd.DataFrame(data).transpose()
+
+    return estudiantes_df
+
+
+def tipifica_variable_plus(df, umbral_categoria=10, umbral_continua=30.0, mostrar_card=True):
+    """
+    Función para tipificar variables como binaria, categórica, numérica continua y numérica discreta.
+    
+    Params:
+        df (pd.DataFrame): DataFrame de pandas.
+        umbral_categoria (int): Valor entero que define el umbral de la cardinalidad para variables categóricas.
+        umbral_continua (float): Valor flotante que define el umbral de la cardinalidad para variables numéricas continuas.
+        motrar_card (bool): Si es True, incluye la cardinalidad y el porcentaje de cardinalidad. True por defecto. 
+    
+    Returns:
+        DataFrame con las columnas (variables), la tipificación sugerida de cada una.     
+        y el tipo real detectado por pandas. Si `motrar_card` es True, también incluye las columnas 
+        "CARD" (cardinalidad absoluta) y "%_CARD" (porcentaje de cardinalidad relativa).
+        Incluye también el % de valores "missings" de cada variable
+    """
+    
+    # Validación del DataFrame
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("El argumento 'df' debe ser un DataFrame de pandas válido.")
+    
+    # Validación de los umbrales
+    if not isinstance(umbral_categoria, int) or umbral_categoria <= 0:
+        raise ValueError("El 'umbral_categoria' debe ser un número entero mayor que 0.")
+    
+    if not isinstance(umbral_continua, (float, int)) or umbral_continua <= 0:
+        raise ValueError("El 'umbral_continua' debe ser un número float mayor que 0.")
+    
+    # DataFrame inicial con cardinalidad y tipificación sugerida
+    df_card = pd.DataFrame({
+        "Dtype_real": df.dtypes.astype(str),
+        "Missings_%": round((df.isnull().mean() * 100),2),
+        "CARD_valores_unicos": df.nunique(),
+        "CARD_%": round((df.nunique() / len(df) * 100),2),
+        "Dtype_sugerido": ""
+    })
+    
+    # Tipo Binaria
+    df_card.loc[df_card["CARD_valores_unicos"] == 2, "Dtype_sugerido"] = "Binaria"
+    
+    # Tipo Categórica
+    df_card.loc[(df_card["CARD_valores_unicos"] < umbral_categoria) & (df_card["Dtype_sugerido"] == ""), "Dtype_sugerido"] = "Categórica"
+    
+    # Tipo Numérica Continua
+    df_card.loc[(df_card["CARD_valores_unicos"] >= umbral_categoria) & (df_card["CARD_%"] >= umbral_continua), "Dtype_sugerido"] = "Numérica Continua"
+    
+    # Tipo Numérica Discreta
+    df_card.loc[(df_card["CARD_valores_unicos"] >= umbral_categoria) & (df_card["CARD_%"] < umbral_continua), "Dtype_sugerido"] = "Numérica Discreta"
+
+    # Selección y renombrado de columnas
+    df_card = df_card.reset_index().rename(columns={"index": "Variable"})
+    
+    if mostrar_card == False:
+        print("Umbral de 'CARD_valores_unicos' para considerarla 'Categórica': ", umbral_categoria)
+        print("Umbral de 'CARD_%' para considerarla 'Numérica Continua': ", umbral_continua)
+        return df_card[["Variable", "Missings_%", "Dtype_real", "Dtype_sugerido"]]
+        
+    else:
+        print("Umbral de 'CARD_valores_unicos' para considerarla 'Categórica': ", umbral_categoria)
+        print("Umbral de 'CARD_%' para considerarla 'Numérica Continua': ", umbral_continua)
+        return df_card[["Variable","Missings_%", "Dtype_real", "CARD_valores_unicos", "CARD_%", "Dtype_sugerido"]]
+
+
 def pinta_distribucion_categoricas(df, columnas_categoricas, relativa=False, mostrar_valores=False):
     num_columnas = len(columnas_categoricas)
     num_filas = (num_columnas // 2) + (num_columnas % 2)
